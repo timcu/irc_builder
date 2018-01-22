@@ -1,0 +1,4 @@
+python/build
+python/dist
+python/ircbuilder.egg-info
+python/ircbuilder/__pycache__
