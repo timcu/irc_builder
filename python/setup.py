@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 from codecs import open
 from os import path
 
-version="0.0.1a2"
+version="0.0.1a3"
 # Get the long description from the README file
 here = path.abspath(path.dirname(__file__))
 with open(path.join(here, '../README.rst'), encoding='utf-8') as f:
@@ -35,4 +35,5 @@ setup(
     keywords='minetest irc',  
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
     python_requires='>=3',
+    include_package_data=True,
 )
