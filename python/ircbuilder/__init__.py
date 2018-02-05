@@ -4,6 +4,8 @@ import json
 import random
 import string
 import time
+import zlib
+import base64
 
 NICK_MAX_LEN=9
 CHAR_SET="UTF-8"
@@ -13,7 +15,7 @@ def strxyz(x, y, z):
 
 
 def strxyzint(x, y, z):
-    return strxyz(math.floor(x), math.floor(y), math.floor(z))
+    return strxyz(math.floor(x+0.5), math.floor(y+0.5), math.floor(z+0.5))
 
 
 def encode(s):
@@ -40,7 +42,7 @@ class MinetestConnection:
         self.ircsock.connect((ircserver, port)) # Here we connect to the server using the port 6667
         self.mtbotnick = mtbotnick
         self.channel = "##" + "".join(random.choice(string.ascii_letters) for _ in range(6))
-        print("Random channel", self.channel)
+        #print("Random channel", self.channel)
 
     def join_channel(self, channel):
         self.channel = channel
@@ -50,7 +52,7 @@ class MinetestConnection:
         self.ircsock.send(encode(s.strip("\r\n") + "\n"))
 
     def response(self):
-        self.ircsock.settimeout(5.0)
+        self.ircsock.settimeout(15.0)
         try:
             ircmsg = self.ircsock.recv(2048).decode(CHAR_SET)
         except socket.timeout:
@@ -60,7 +62,8 @@ class MinetestConnection:
         ircmsg = ircmsg.strip('\r\n')
         if ircmsg.find("PING :") != -1:
             self.ping()
-        print(len(ircmsg), ircmsg)
+        if len(ircmsg):
+            print(len(ircmsg), ircmsg)
         return ircmsg
 
     def send_msg(self, msg): # send private message to mtbotnick
@@ -71,7 +74,7 @@ class MinetestConnection:
 
     def send_irccmd(self, msg): # send private message to mtbotnick
         #self.send_msg(self.mtbotnick + ': ' + msg) # displays in chat room
-        self.send_privmsg(self.mtbotnick + ': ' + msg) #doesn't display in chat room
+        self.send_privmsg(self.mtbotnick + ' : ' + msg) #doesn't display in chat room
         name = None
         response = self.response()
         start = time.time()
@@ -105,6 +108,43 @@ class MinetestConnection:
     def set_nodes(self, x1, y1, z1, x2, y2, z2, item):
         """Set a cuboid of blocks (x1, y1, z1, x2, y2, z2, item)"""
         return self.send_cmd("set_nodes " + strxyzint(x1, y1, z1) + strxyzint(x2, y2, z2) + item)
+
+    def set_node_list(self, list_pos, item):
+        """Set all blocks at a list of position tuples to the same item ([(x1, y1, z1), (x2, y2, z2), ...], item)"""
+        batches = 0
+        maxperbatch = 0
+        while batches==0 or maxperbatch > 400:
+            maxperbatch = 0
+            batches += 1
+            batch_size = len(list_pos) // batches + 1
+            b64=[]
+            for batch in range(batches):
+                beg = batch * batch_size
+                end = beg + batch_size
+                s = '|'
+                for pos in list_pos[beg:end]:
+                    s = s + strxyzint(pos[0],pos[1],pos[2]).strip("() ") + "|"
+                #print(s)
+                bytes_unzipped=s.encode('utf-8')
+                bytes_zipped=zlib.compress(bytes_unzipped)
+                b64.append(base64.standard_b64encode(bytes_zipped).decode('utf-8') + " ")
+                lenxmit = len("set_node_list " + b64[batch] + item)
+                if maxperbatch < lenxmit:
+                    maxperbatch = lenxmit
+                #print("Batch",batch,"of",batches,"from",beg,"to",end,"len",lenxmit)
+        str_error = ''
+        str_item = ''
+        count = 0
+        for batch in range(batches):
+            ret = self.send_cmd("set_node_list " + b64[batch] + item)
+            list_ret = ret.split(' ', maxsplit=1)
+            try:
+                count += int(list_ret[1])
+            except ValueError:
+                str_error += " [" + ret + "]"
+            if len(list_ret) > 1 and list_ret[0] not in str_item:
+                str_item += list_ret[0] + " "
+        return str_item + str(count) + str_error
 
     def set_sign(self, x, y, z, direction, text, type="default:sign_wall_wood"):
         """Set a sign at a location with text and facing direction

@@ -37,7 +37,7 @@ function ChatCmdBuilder.build(func)
 		_subs = {}
 	}
 	function cmd:sub(route, func, def)
-		print("Parsing " .. route)
+		--print("Parsing " .. route)
 
 		def = def or {}
 		if string.trim then
@@ -56,7 +56,7 @@ function ChatCmdBuilder.build(func)
 		local should_be_eos = false
 		local function finishParam()
 			if param ~= "" and param_type ~= "" then
-				print("   - Found param " .. param .. " type " .. param_type)
+				--print("   - Found param " .. param .. " type " .. param_type)
 
 				if param_type == "pos" then
 					sub.pattern = sub.pattern .. "%(? *(%-?[%d.]+) *, *(%-?[%d.]+) *, *(%-?[%d.]+) *%)?"
@@ -95,12 +95,12 @@ function ChatCmdBuilder.build(func)
 
 			if state == STATE_READY then
 				if c == ":" then
-					print(" - Found :, entering param")
+					--print(" - Found :, entering param")
 					state = STATE_PARAM
 					param_type = "word"
 					catching_space = false
 				elseif c:match(match_space) then
-					print(" - Found space")
+					--print(" - Found space")
 					if not catching_space then
 						catching_space = true
 						sub.pattern = sub.pattern .. catch_space
@@ -111,17 +111,17 @@ function ChatCmdBuilder.build(func)
 				end
 			elseif state == STATE_PARAM then
 				if c == ":" then
-					print(" - Found :, entering param type")
+					--print(" - Found :, entering param type")
 					state = STATE_PARAM_TYPE
 					param_type = ""
 				elseif c:match(match_space) then
-					print(" - Found whitespace, leaving param")
+					--print(" - Found whitespace, leaving param")
 					state = STATE_READY
 					finishParam()
 					catching_space = true
 					sub.pattern = sub.pattern .. catch_space
 				elseif c:match("%W") then
-					print(" - Found nonalphanum, leaving param")
+					--print(" - Found nonalphanum, leaving param")
 					state = STATE_READY
 					finishParam()
 					sub.pattern = sub.pattern .. escape(c)
@@ -130,13 +130,13 @@ function ChatCmdBuilder.build(func)
 				end
 			elseif state == STATE_PARAM_TYPE then
 				if c:match(match_space) then
-					print(" - Found space, leaving param type")
+					--print(" - Found space, leaving param type")
 					state = STATE_READY
 					finishParam()
 					catching_space = true
 					sub.pattern = sub.pattern .. catch_space					
 				elseif c:match("%W") then
-					print(" - Found nonalphanum, leaving param type")
+					--print(" - Found nonalphanum, leaving param type")
 					state = STATE_READY
 					finishParam()
 					sub.pattern = sub.pattern .. escape(c)
@@ -145,10 +145,10 @@ function ChatCmdBuilder.build(func)
 				end
 			end
 		end
-		print(" - End of route")
+		--print(" - End of route")
 		finishParam()
 		sub.pattern = sub.pattern .. "$"
-		print("Pattern: " .. sub.pattern)
+		--print("Pattern: " .. sub.pattern)
 
 		table.insert(self._subs, sub)
 	end

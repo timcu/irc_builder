@@ -56,16 +56,4 @@ Once running, adjust the following settings::
   # Settings > Advanced > Mods > irc > Basic > IRC server port > eg 6667
   # Settings > Advanced > Mods > irc > Basic > Channel to join > eg ##myminetest
 
-Developer information
----------------------
-
-To package python distribution and upload to test pypi from virtual environment containing twine::
-
-  rm -R build dist ircbuilder.egg-info
-  python setup.py bdist_wheel
-  twine upload --repository-url https://test.pypi.org/legacy/ dist/*
-
-To install from test pypi::
-
-  pip install --index-url https://test.pypi.org/simple/ ircbuilder==0.0.1a3
 

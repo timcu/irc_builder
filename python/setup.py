@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 from codecs import open
 from os import path
 
-version="0.0.1a3"
+version="0.0.2"
 # Get the long description from the README file
 here = path.abspath(path.dirname(__file__))
 with open(path.join(here, '../README.rst'), encoding='utf-8') as f:
