@@ -3,13 +3,13 @@ ircbuilder
 
 This package provides a python api for sending commands to a Minetest server over IRC.
 
-`The source for this package is available here <https://github.com/timcu/ircbuilder>`_.
+`The source for this package is available here <https://github.com/timcu/irc_builder>`_.
 
 To install 
 
 pip install ircbuilder
 
-Requires Minetest with ircbuilder mod
+Requires Minetest with irc_builder mod
 
 On Mac OS X::
 
@@ -20,7 +20,7 @@ On Mac OS X::
   git clone git@github.com:ShadowNinja/minetest-irc_commands.git
   mv minetest-irc_commands irc_commands
   git clone git@github.com:minetest-mods/signs_lib.git
-  git clone git@github.com:timcu/ircbuilder.git
+  git clone git@github.com:timcu/irc_builder.git
   /usr/local/opt/minetest/minetest.app/Contents/MacOS/minetest
 
 On Ubuntu or Debian linux::
@@ -32,7 +32,7 @@ On Ubuntu or Debian linux::
   git clone git@github.com:ShadowNinja/minetest-irc_commands.git
   mv minetest-irc_commands irc_commands
   git clone git@github.com:minetest-mods/signs_lib.git
-  git clone git@github.com:timcu/ircbuilder.git
+  git clone git@github.com:timcu/irc_builder.git
   minetest
 
 On Windows::
@@ -44,7 +44,7 @@ On Windows::
   git clone git@github.com:ShadowNinja/minetest-irc_commands.git
   mv minetest-irc_commands irc_commands
   git clone git@github.com:minetest-mods/signs_lib.git
-  git clone git@github.com:timcu/ircbuilder.git
+  git clone git@github.com:timcu/irc_builder.git
   exit
   # Double click on Documents > minetest > bin > minetest.exe
 

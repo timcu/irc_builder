@@ -2,7 +2,7 @@ dofile(minetest.get_modpath(minetest.get_current_modname()) .. "/chatcmdbuilder.
 local inflate = dofile(minetest.get_modpath(minetest.get_current_modname()) .. "/inflate_nocrc.lua")
 
 irc_builder = {
-	version = "0.0.2",
+	version = "0.0.3",
 }
 
 irc_builder.get_ground_level = function(x, z)
@@ -35,8 +35,14 @@ minetest.register_privilege("irc_builder", {
 })
 
 ChatCmdBuilder.new("get_node", function(cmd)
-	cmd:sub(":pos1:pos", function(name, pos1)
-		local item = minetest.get_node(pos1)
+	cmd:sub(":pos1:pos", function(name, pos)
+		local item = minetest.get_node_or_nil(pos)
+		if not item then 
+			-- Load the map at pos and try again
+			minetest.get_voxel_manip():read_from_map(pos, pos)
+			item = minetest.get_node(pos)
+		end
+		-- if map not loaded or generated yet item.name == 'ignore'
 		return true, item.name
 	end)
 end, {
@@ -45,8 +51,14 @@ end, {
 })
 
 ChatCmdBuilder.new("get_node_table", function(cmd)
-	cmd:sub(":pos1:pos", function(name, pos1)
-		local item = minetest.get_node(pos1)
+	cmd:sub(":pos1:pos", function(name, pos)
+		local item = minetest.get_node_or_nil(pos)
+		if not item then 
+			-- Load the map at pos and try again
+			minetest.get_voxel_manip():read_from_map(pos, pos)
+			item = minetest.get_node(pos)
+		end
+		-- if map not loaded or generated yet item.name == 'ignore'
 		return true, minetest.write_json(item)
 	end)
 end, {
@@ -128,6 +140,7 @@ ChatCmdBuilder.new("compare_nodes", function(cmd)
 		else
 			item = {name=itemtext}
 		end
+		minetest.get_voxel_manip():read_from_map(pos1, pos2)
 		local stepx = (pos1.x > pos2.x) and -1 or 1
 		local stepy = (pos1.y > pos2.y) and -1 or 1
 		local stepz = (pos1.z > pos2.z) and -1 or 1
@@ -175,48 +188,106 @@ end
 
 ChatCmdBuilder.new("set_node", function(cmd)
 	cmd:sub(":pos1:pos :item:text", function(name, pos1, itemtext)
-		minetest.set_node(pos1, item_from_itemtext(itemtext))
-		return true, itemtext .." 1"
+		minetest.get_voxel_manip():read_from_map(pos1, pos1)
+		if minetest.is_protected(pos1, name) then
+			return false, "protected 0"
+		else
+			minetest.set_node(pos1, item_from_itemtext(itemtext))
+			return true, itemtext .." 1"
+		end
 	end)
 end, {
 	description = "pos item, eg: /set_node (1,8,1) default:stone",
 	privs = {irc_builder = true}
 })
 
-ChatCmdBuilder.new("set_nodes", function(cmd)
-	cmd:sub(":pos1:pos :pos2:pos :item:text", function(name, pos1, pos2, itemtext)
-		local stepx = (pos1.x > pos2.x) and -1 or 1
-		local stepy = (pos1.y > pos2.y) and -1 or 1
-		local stepz = (pos1.z > pos2.z) and -1 or 1
-		local count = 0
-		local item = item_from_itemtext(itemtext)
-		for x = pos1.x,pos2.x,stepx do
-			for y = pos1.y,pos2.y,stepy do
-				for z = pos1.z,pos2.z,stepz do
-					minetest.set_node({x=x,y=y,z=z},item)
+irc_builder.set_nodes = function(name, pos1, pos2, item)
+	local stepx = (pos1.x > pos2.x) and -1 or 1
+	local stepy = (pos1.y > pos2.y) and -1 or 1
+	local stepz = (pos1.z > pos2.z) and -1 or 1
+	local count = 0
+	local buildable = true
+	for x = pos1.x,pos2.x,stepx do
+		for y = pos1.y,pos2.y,stepy do
+			for z = pos1.z,pos2.z,stepz do
+				local pos = {x=x, y=y, z=z}
+				if minetest.is_protected(pos, name) then
+					buildable = false
+				else
+					minetest.set_node(pos, item)
 					count = count + 1
 				end
 			end
 		end
-		return true, itemtext.." "..count
+	end
+	return buildable, count
+end
+
+ChatCmdBuilder.new("set_nodes", function(cmd)
+	cmd:sub(":pos1:pos :pos2:pos :item:text", function(name, pos1, pos2, itemtext)
+		minetest.get_voxel_manip():read_from_map(pos1, pos2)
+		local item = item_from_itemtext(itemtext)
+		local buildable, count = irc_builder.set_nodes(name, pos1, pos2, item)
+		return buildable, itemtext.." "..count
 	end)
 end, {
 	description = "pos1 pos2 item, eg: /set_nodes (1,8,1) (2,9,2) wool:orange",
 	privs = {irc_builder = true}
 })
 
+local pos_from_str=function(s, pmin, pmax)
+	local str_x, str_y, str_z = s:match("(%-?[%d.]+),(%-?[%d.]+),(%-?[%d.]+)")
+	local x = tonumber(str_x)
+	local y = tonumber(str_y)
+	local z = tonumber(str_z)
+	if pmin then 
+		if pmin.x > x then pmin.x = x end
+		if pmin.y > y then pmin.y = y end
+		if pmin.z > z then pmin.z = z end
+	else
+		pmin = {x=x, y=y, z=z}
+	end
+	if pmax then 
+		if pmax.x < x then pmax.x = x end
+		if pmax.y < y then pmax.y = y end
+		if pmax.z < z then pmax.z = z end
+	else
+		pmax = {x=x, y=y, z=z}
+	end
+	local pos = {x=x, y=y, z=z}	
+	return pos, pmin, pmax
+end
+
 ChatCmdBuilder.new("set_node_list", function(cmd)
 	cmd:sub(":b64:word :item:text", function(name, b64, itemtext)
 		local count = 0
 		local item = item_from_itemtext(itemtext)
-		local strpos = inflate.b64dec_inflate_zlib_ascii(b64)
-		for pos in strpos:gmatch("([^%|]+)") do
-			local x, y, z = pos:match("(%-?[%d.]+),(%-?[%d.]+),(%-?[%d.]+)")
-			count = count + 1
-			--print(count.." "..x.." "..y.." "..z.." "..itemtext)
-			minetest.set_node({x=x,y=y,z=z},item)			
+		local strposs = inflate.b64dec_inflate_zlib_ascii(b64)
+		local buildable = true
+		local pos, pos1, pos2, pmin, pmax
+		local pos_list = {}
+		for strpos in strposs:gmatch("([^%|]+)") do
+			if strpos:find(" ") then
+				local str1, str2 = strpos:match('([%S]+)%s+([%S]+)')
+				pos1, pmin, pmax = pos_from_str(str1, pmin, pmax)
+				pos2, pmin, pmax = pos_from_str(str2, pmin, pmax)
+				table.insert(pos_list, {pos1=pos1, pos2=pos2})
+			else
+				pos, pmin, pmax = pos_from_str(strpos, pmin, pmax)
+				table.insert(pos_list, {pos1=pos, pos2=pos})
+			end
+			local str_x, str_y, str_z = strpos:match("(%-?[%d.]+),(%-?[%d.]+),(%-?[%d.]+)")
+		end
+		--print('set_node_list pmin='..minetest.write_json(pmin)..', pmax='..minetest.write_json(pmax))
+		minetest.get_voxel_manip():read_from_map(pmin, pmax)
+		for _,pos_pair in ipairs(pos_list) do
+			local bld, cnt = irc_builder.set_nodes(name, pos_pair.pos1, pos_pair.pos2, item)
+			if not bld then
+				buildable = false
+			end
+			count = count + cnt
 		end	
-		return true, itemtext.." "..count
+		return buildable, itemtext.." "..count
 	end)
 end, {
 	description = "zipb64 item, eg: /set_node_list Axdeqweqw wool:orange",
@@ -228,6 +299,7 @@ irc_builder.set_sign = function(pos, direction, itemname, text)
 	if not reg then
 		return false,"Sign type not registered: "..itemname
 	end
+	minetest.get_voxel_manip():read_from_map(pos, pos)
 	text=text:gsub("\\n","\n")
 	local d=direction:lower()
 	local dir
@@ -249,19 +321,23 @@ irc_builder.set_sign = function(pos, direction, itemname, text)
 	end
 	local prev_node = minetest.get_node(pos)
 	if prev_node.name ~= itemname then
-		minetest.add_node(pos, sign)
+		minetest.set_node(pos, sign)
 	end
 	local meta = minetest.get_meta(pos)
 	meta:set_string("infotext",text)
 	meta:set_string("text",text)
 	meta:set_int("__signslib_new_format",1)
 	signs_lib.update_sign(pos)
-	return true, itemname
+	return true, itemname.." 1"
 end
 
 ChatCmdBuilder.new("set_sign", function(cmd)
 	cmd:sub(":pos:pos :direction:word :itemname:word :text:text", function(name, pos, direction, itemname, text)
-		return irc_builder.set_sign(pos, direction, itemname, text)
+		if minecraft.is_protected(pos, name) then
+			return false, "protected 0"
+		else
+			return irc_builder.set_sign(pos, direction, itemname, text)
+		end
 	end)
 end, {
 	description = [[pos direction itemname text
@@ -271,6 +347,7 @@ end, {
 })
 
 irc_builder.add_book_to_chest = function(name, pos, texttable)
+	minetest.get_voxel_manip():read_from_map(pos, pos)
 	local itemname="default:book_written"
 	local reg=minetest.registered_craftitems[itemname]
 	if not reg then
@@ -305,6 +382,9 @@ end
 
 ChatCmdBuilder.new("add_book_to_chest", function(cmd)
 	cmd:sub(":pos:pos :text:text", function(name, pos, text)
+		if minecraft.is_protected(pos, name) then
+			return false, "protected 0"
+		end
 		text=text:gsub("\\n","\n")
 		local texttable
 		if text:sub(1,1) == "{" then

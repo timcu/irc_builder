@@ -6,6 +6,7 @@ import string
 import time
 import zlib
 import base64
+import sys
 
 NICK_MAX_LEN=9
 CHAR_SET="UTF-8"
@@ -43,15 +44,24 @@ class MinetestConnection:
         self.mtbotnick = mtbotnick
         self.channel = "##" + "".join(random.choice(string.ascii_letters) for _ in range(6))
         #print("Random channel", self.channel)
+        self.pycharm_edu_check_task = len(sys.argv) > 1 and "_window" in sys.argv[1]
 
-    def join_channel(self, channel):
-        self.channel = channel
+    def join_channel(self, channel=None):
+        if channel:
+            # if channel not set, use randomly generated channel
+            self.channel = channel
         self.send_string("JOIN "+ self.channel)
 
     def send_string(self, s):
+        if self.pycharm_edu_check_task:
+            print("IRC disabled because sys.argv[1] contains '_window' meaning PyCharm Edu is checking task")
+            return
         self.ircsock.send(encode(s.strip("\r\n") + "\n"))
 
     def response(self):
+        if self.pycharm_edu_check_task:
+            print("IRC disabled because sys.argv[1] contains '_window' meaning PyCharm Edu is checking task")
+            return ""
         self.ircsock.settimeout(15.0)
         try:
             ircmsg = self.ircsock.recv(2048).decode(CHAR_SET)
@@ -123,7 +133,11 @@ class MinetestConnection:
                 end = beg + batch_size
                 s = '|'
                 for pos in list_pos[beg:end]:
-                    s = s + strxyzint(pos[0],pos[1],pos[2]).strip("() ") + "|"
+                    if len(pos) == 2 and len(pos[0])==3 and len(pos[1])==3:
+                        s = s + strxyzint(pos[0][0],pos[0][1],pos[0][2]).strip("() ") + " "
+                        s = s + strxyzint(pos[1][0],pos[1][1],pos[1][2]).strip("() ") + "|"
+                    else:
+                        s = s + strxyzint(pos[0],pos[1],pos[2]).strip("() ") + "|"
                 #print(s)
                 bytes_unzipped=s.encode('utf-8')
                 bytes_zipped=zlib.compress(bytes_unzipped)
@@ -137,13 +151,16 @@ class MinetestConnection:
         count = 0
         for batch in range(batches):
             ret = self.send_cmd("set_node_list " + b64[batch] + item)
-            list_ret = ret.split(' ', maxsplit=1)
             try:
+                list_ret = ret.split(' ', maxsplit=1)
                 count += int(list_ret[1])
+                if len(list_ret) > 1 and list_ret[0] not in str_item:
+                    str_item += list_ret[0] + " "
+            except AttributeError:
+                # list_ret is None so can't be split
+                pass
             except ValueError:
                 str_error += " [" + ret + "]"
-            if len(list_ret) > 1 and list_ret[0] not in str_item:
-                str_item += list_ret[0] + " "
         return str_item + str(count) + str_error
 
     def set_sign(self, x, y, z, direction, text, type="default:sign_wall_wood"):
@@ -194,7 +211,7 @@ class MinetestConnection:
         return self.send_cmd("add_book_to_chest " + strxyzint(x, y, z) + json.dumps(book).replace("\r","").replace("\n","\\n"))
 
     def get_ground_level(self, x, z):
-        return self.send_cmd("get_ground_level " + str(math.floor(x)) + " " + str(math.floor(z)))
+        return int(self.send_cmd("get_ground_level " + str(math.floor(x+0.5)) + " " + str(math.floor(z+0.5))))
 
     def get_connected_players(self):
         return self.send_cmd("get_connected_players").split(" ")

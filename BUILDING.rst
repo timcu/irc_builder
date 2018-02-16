@@ -9,7 +9,7 @@ To package python distribution and upload to test pypi from virtual environment 
 
 To install from test pypi::
 
-  pip install --index-url https://test.pypi.org/simple/ ircbuilder==0.0.1
+  pip install --index-url https://test.pypi.org/simple/ ircbuilder==0.0.3
 
 To upload to pypi::
 
