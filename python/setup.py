@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 from codecs import open
 from os import path
+from ircbuilder.version import VERSION
 
-version="0.0.3"
 # Get the long description from the README file
 here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
@@ -10,10 +10,10 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     name='ircbuilder',
-    version=version,
-    description='Python API for Minetest server with ircbuilder mod',
+    version=VERSION,
+    description='Python API for Minetest server with irc_builder mod',
     long_description=long_description,
-    url='https://github.com/timcu/ircbuilder',
+    url='https://github.com/timcu/irc_builder',
     author="D Tim Cummings",
     author_email='dtimcummings@gmail.com',  # Optional
     license='MIT',
@@ -29,7 +29,7 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
-#        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.6',
     ],
 
     keywords='minetest irc',  

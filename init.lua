@@ -2,7 +2,7 @@ dofile(minetest.get_modpath(minetest.get_current_modname()) .. "/chatcmdbuilder.
 local inflate = dofile(minetest.get_modpath(minetest.get_current_modname()) .. "/inflate_nocrc.lua")
 
 irc_builder = {
-	version = "0.0.3",
+	version = "0.0.5",
 }
 
 irc_builder.get_ground_level = function(x, z)

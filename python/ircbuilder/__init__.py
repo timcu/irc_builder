@@ -7,6 +7,10 @@ import time
 import zlib
 import base64
 import sys
+import re
+import queue
+import threading
+from .version import VERSION
 
 NICK_MAX_LEN=9
 CHAR_SET="UTF-8"
@@ -38,43 +42,104 @@ def escape(s):
 
 class MinetestConnection:
     """Connection to IRC Server sending commands to Minetest"""
-    def __init__(self, ircserver, mtbotnick, port = 6667):
+    def __init__(self, ircserver, mtbotnick, pybotnick, port = 6667):
         self.ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.ircsock.connect((ircserver, port)) # Here we connect to the server using the port 6667
         self.mtbotnick = mtbotnick
+        self.pybotnick = pybotnick
         self.channel = "##" + "".join(random.choice(string.ascii_letters) for _ in range(6))
         #print("Random channel", self.channel)
         self.pycharm_edu_check_task = len(sys.argv) > 1 and "_window" in sys.argv[1]
+        #self.pycharm_edu_check_task = True  # For testing only
+        self.irc_disabled_message = "IRC disabled because sys.argv[1] contains '_window' meaning PyCharm Edu is checking task"
+        #self.irc_disabled_message_printed = False
+        self.ircserver = ircserver
+        self.ircserver_name = None
+        self.q_msg = queue.Queue()
+        self.q_num = queue.Queue()
+        self.receive_thread = threading.Thread(target=self.receive_irc)
+        # Set daemon so thread will stop when main program stops
+        self.receive_thread.setDaemon(True)
+        self.receive_thread.start()
+
 
     def join_channel(self, channel=None):
         if channel:
             # if channel not set, use randomly generated channel
             self.channel = channel
+        else:
+            print("Joining IRC channel " + self.channel)
         self.send_string("JOIN "+ self.channel)
 
     def send_string(self, s):
         if self.pycharm_edu_check_task:
-            print("IRC disabled because sys.argv[1] contains '_window' meaning PyCharm Edu is checking task")
+            if not self.irc_disabled_message_printed:
+                print(self.irc_disabled_message)
+                self.irc_disabled_message_printed = True
             return
+        print("SENDING:",s)
         self.ircsock.send(encode(s.strip("\r\n") + "\n"))
+    
+    def pong(self, *items):
+        items = ['PONG'] + [x for x in items if x is not None]
+        self.send_string(' '.join(items))
 
-    def response(self):
+    def receive_irc(self):
         if self.pycharm_edu_check_task:
-            print("IRC disabled because sys.argv[1] contains '_window' meaning PyCharm Edu is checking task")
-            return ""
-        self.ircsock.settimeout(15.0)
-        try:
-            ircmsg = self.ircsock.recv(2048).decode(CHAR_SET)
-        except socket.timeout:
-            #not interested in responses after 5 seconds
-            print("socket.recv timed out!!")
-            return ""
-        ircmsg = ircmsg.strip('\r\n')
-        if ircmsg.find("PING :") != -1:
-            self.ping()
-        if len(ircmsg):
-            print(len(ircmsg), ircmsg)
-        return ircmsg
+            print(self.irc_disabled_message)
+            if self.q_msg.empty():
+                self.q_msg.put(self.irc_disabled_message)
+            return
+
+        buffer = ''
+        while True:
+            try:
+                buffer += self.ircsock.recv(2048).decode(CHAR_SET)
+            except socket.timeout:
+                print("socket.recv timed out!!")
+            last_line_complete = len(buffer)>0 and buffer[-1:] in ('\r\n')
+            lines = buffer.split('\r\n')
+            if not last_line_complete:
+                buffer = lines[-1]
+                del(lines[-1])
+            else:
+                buffer = ''
+            for line in lines:
+                print("LINE: " + str(line))
+                if line.find("PING :") == 0:
+                    self.pong(line[6:])
+                elif line.find("VERSION") == 0:
+                    self.send_string("VERSION python ircbuilder " + VERSION)
+                else:
+                    if line.startswith(':'):
+                        parts = line[1:].split(' ', maxsplit=3)
+                        # 0: sender
+                        # 1: PRIVMSG
+                        # 2: recipient
+                        # 3: message (starting with a :)
+                        sender = parts[0]
+                        sender_name = sender.split('!',1)[0]
+                        if not self.ircserver_name:
+                            self.ircserver_name = sender_name
+                        recipient_name = parts[2]
+                        # print("SENDER:",sender_name,self.ircserver_name,"RECIPIENT:",recipient_name,self.pybotnick)
+                        if recipient_name == self.pybotnick:
+                            if parts[1] == "PRIVMSG" and parts[3] == ":\x01VERSION\x01":
+                                self.send_string("VERSION python ircbuilder " + VERSION)
+                            if sender_name == self.ircserver_name:
+                                try:
+                                    message_num = int(parts[1])
+                                except ValueError:
+                                    message_num = None
+                                if message_num:
+                                    self.q_num.put(message_num)
+                                    # print("Queued msg_num:",parts[1])
+                            elif sender_name == self.mtbotnick:
+                                if parts[1] == "PRIVMSG":
+                                    # get the message to look for commands
+                                    message = parts[3].split(':',1)[1]
+                                    self.q_msg.put(message)
+                                    # print("Queued message:",message)
 
     def send_msg(self, msg): # send private message to mtbotnick
         self.send_privmsg(self.channel + " :" + msg)
@@ -82,23 +147,34 @@ class MinetestConnection:
     def send_privmsg(self, msg): # send private message to mtbotnick
         self.send_string("PRIVMSG " + msg)
 
+    def wait_for_privmsg(self, timeout=5.0):
+        start = time.time()
+        while time.time() - start < timeout:
+            if not self.q_msg.empty():
+                return self.q_msg.get()
+            else:
+                time.sleep(0.1)
+        print("Timeout waiting for privmsg " + str(time.time() - start))
+        return
+
+    def wait_for_message_num(self, message_num, timeout=15.0):
+        start = time.time()
+        while time.time() - start < timeout:
+            if not self.q_num.empty():
+                num = self.q_num.get()
+                if message_num == num or num >= 400:
+                    # print("Seconds", (time.time()-start), "waiting for", message_num , "and found", num)
+                    return num
+            else:
+                time.sleep(0.1)
+        print("Timeout waiting for", message_num)
+        return None
+
+
     def send_irccmd(self, msg): # send private message to mtbotnick
         #self.send_msg(self.mtbotnick + ': ' + msg) # displays in chat room
         self.send_privmsg(self.mtbotnick + ' : ' + msg) #doesn't display in chat room
-        name = None
-        response = self.response()
-        start = time.time()
-        while response.find("PRIVMSG") == -1 and time.time() - start < 5.0:
-            response += self.response()
-        #print("Time taken = " + str(time.time() - start))
-        if response.find("PRIVMSG") != -1:
-            # save user name into name variable
-            name = response.split('!',1)[0][1:]
-            # get the message to look for commands
-            message = response.split('PRIVMSG',1)[1].split(':',1)[1]
-        if (name == self.mtbotnick):
-            return message
-        return
+        return self.wait_for_privmsg()
 
     def send_cmd(self, msg): # send private message to mtbotnick
         return self.send_irccmd("cmd " + msg)
@@ -273,20 +349,24 @@ class MinetestConnection:
 #        return [Entity(int(e[:e.find(",")]), e[e.find(",") + 1:]) for e in types]
 
     @staticmethod
-    def create(ircserver, mtuser, mtuserpass, mtbotnick = "mtserver", channel = "#coderdojo", pybotnick = None, port = 6667 ):
-        mc = MinetestConnection(ircserver,mtbotnick,port)
+    def create(ircserver, mtuser, mtuserpass, mtbotnick = "mtserver", channel = None, pybotnick = None, port = 6667 ):
         if not pybotnick:
             pybotnick = "py" + mtuser
             if len(pybotnick) > NICK_MAX_LEN: pybotnick = pybotnick[0:NICK_MAX_LEN]
-        mc.send_string("USER " + pybotnick + " " + pybotnick + " " + pybotnick + " " + pybotnick) # user authentication
+        mc = MinetestConnection(ircserver,mtbotnick,pybotnick,port)
+        #mc.send_string("USER " + pybotnick + " " + pybotnick + " " + pybotnick + " " + pybotnick) # user authentication
+        mc.send_string("USER " + pybotnick + " 0 * :" + pybotnick) # user authentication  first pybotnick is username, second pybotnick is real name
         mc.send_string("NICK " + pybotnick) # assign the nick to this python app
+        mc.wait_for_message_num(376) # End of MOTD
         mc.join_channel(channel)
-        while mc.response().find("End of NAMES list") == -1:
-            pass
+        mc.wait_for_message_num(366) # End of NAMES list
+        #start = time.time()
+        #while mc.response().find("End of NAMES list") == -1 and time.time() - start < 5.0 and not mc.pycharm_edu_check_task:
+        #    time.sleep(1)
         mc.send_irccmd("login " + mtuser + " " + mtuserpass)
         return mc
 
 
 if __name__ == "__main__":
-    mc = MinetestConnection.create("irc.undernet.org","serverop","")
+    mc = MinetestConnection.create("irc.rizon.net","serverop",sys.argv[0])
     mc.send_privmsg("Hello, Minetest!")
