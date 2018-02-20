@@ -92,17 +92,7 @@ local string_char = string.char
 
 local DEBUG = false
 
--- Whether to use `bit` library functions in current module.
--- Unlike the crc32 library, it doesn't make much difference in this module.
-local NATIVE_BITOPS = (bit ~= nil)
-
 local band, lshift, rshift
-if NATIVE_BITOPS then
-  band = bit.band
-  lshift = bit.lshift
-  rshift = bit.rshift
-end
-
 
 local function warn(s)
   io.stderr:write(s, '\n')
