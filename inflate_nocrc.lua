@@ -89,7 +89,7 @@ local table_sort = table.sort
 local math_max = math.max
 local string_char = string.char
 
-
+local NATIVE_BITOPS = false
 local DEBUG = false
 
 local band, lshift, rshift
