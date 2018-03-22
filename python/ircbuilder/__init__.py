@@ -7,10 +7,10 @@ import time
 import zlib
 import base64
 import sys
-import re
 import queue
 import threading
 from .version import VERSION
+import ircbuilder.nodebuilder as nodebuilder
 
 NICK_MAX_LEN=9
 CHAR_SET="UTF-8"
@@ -48,13 +48,15 @@ class MinetestConnection:
         self.mtbotnick = mtbotnick
         self.pybotnick = pybotnick
         self.channel = "##" + "".join(random.choice(string.ascii_letters) for _ in range(6))
-        #print("Random channel", self.channel)
+        # print("Random channel", self.channel)
         self.pycharm_edu_check_task = len(sys.argv) > 1 and "_window" in sys.argv[1]
-        #self.pycharm_edu_check_task = True  # For testing only
+        # self.pycharm_edu_check_task = True  # For testing only
         self.irc_disabled_message = "IRC disabled because sys.argv[1] contains '_window' meaning PyCharm Edu is checking task"
-        #self.irc_disabled_message_printed = False
+        # self.irc_disabled_message_printed = False
         self.ircserver = ircserver
         self.ircserver_name = None
+        # building is a node dict which stores results of build commands before sending to minetest in a batch
+        self.building = {}
         self.q_msg = queue.Queue()
         self.q_num = queue.Queue()
         self.receive_thread = threading.Thread(target=self.receive_irc)
@@ -347,6 +349,33 @@ class MinetestConnection:
 #        s = self.conn.sendReceive(b"world.getEntityTypes")
 #        types = [t for t in s.split("|") if t]
 #        return [Entity(int(e[:e.find(",")]), e[e.find(",") + 1:]) for e in types]
+
+    def build(self, x, y, z, item):
+        """similar to set_node but stores nodes in building dict rather than sending to minetest
+
+        x, y, z: coordinates to be added to nodes. They are converted to integers so that each node has unique set of coordinates
+        item: minetest item name as a string "default:glass", or json string '{"name":"default:torch", "param2":"1"}'
+        x, y, z can also be supplied as iterables eg range or list or tuple or generator
+        """
+        self.building.update(nodebuilder.build(x, y, z, item))
+
+    def build_undo(self, x, y, z):
+        """removes any nodes already built from building dict prior to sending to minetest
+
+        x, y, z: coordinates to be added to nodes. They are converted to integers so that each node has unique set of coordinates
+        x, y, z can also be supplied as iterables eg range or list or tuple or generator
+        """
+        for xi in nodebuilder.make_iter(x):
+            for yi in nodebuilder.make_iter(y):
+                for zi in nodebuilder.make_iter(z):
+                    del self.building[nodebuilder.int_tuple(xi, yi, zi)]
+
+    def send_building(self, end_list=()):
+        """sends building dict, which has been created from multiple calls to build(), to minetest
+
+        end_list: order of items to send last. eg ("air", "default:torch")"""
+        nodebuilder.send_node_dict(self, self.building, end_list)
+        self.building = {}
 
     @staticmethod
     def create(ircserver, mtuser, mtuserpass, mtbotnick = "mtserver", channel = None, pybotnick = None, port = 6667 ):

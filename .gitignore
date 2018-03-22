@@ -3,3 +3,4 @@ python/dist
 python/ircbuilder.egg-info
 python/ircbuilder/__pycache__
 *.pyc
+python/.idea
