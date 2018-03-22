@@ -183,6 +183,26 @@ local item_from_itemtext = function(itemtext)
 	else
 		item = {name=itemtext}
 	end
+	local d=item.direction
+	if d then 
+		local reg=minetest.registered_nodes[item.name]
+		if reg then
+			d = d:lower()
+			local dir = nil
+			if d=="+x" then dir={x=1,y=0,z=0}
+			elseif d=="-x" then dir={x=-1,y=0,z=0}
+			elseif d=="+y" then dir={x=0,y=1,z=0}
+			elseif d=="-y" then dir={x=0,y=-1,z=0}
+			elseif d=="+z" then dir={x=0,y=0,z=1}
+			elseif d=="-z" then dir={x=0,y=0,z=-1}
+			end
+			if reg.paramtype2=="wallmounted" then
+				item.param2=minetest.dir_to_wallmounted(dir)
+			elseif reg.paramtype2=="facedir" then 
+				item.param2=minetest.dir_to_facedir(dir)
+			end
+		end
+	end
 	return item
 end
 
