@@ -384,8 +384,10 @@ class MinetestConnection:
             if len(pybotnick) > NICK_MAX_LEN: pybotnick = pybotnick[0:NICK_MAX_LEN]
         mc = MinetestConnection(ircserver,mtbotnick,pybotnick,port)
         #mc.send_string("USER " + pybotnick + " " + pybotnick + " " + pybotnick + " " + pybotnick) # user authentication
+        mc.send_string("CAP END")
         mc.send_string("USER " + pybotnick + " 0 * :" + pybotnick) # user authentication  first pybotnick is username, second pybotnick is real name
         mc.send_string("NICK " + pybotnick) # assign the nick to this python app
+
         mc.wait_for_message_num(376) # End of MOTD
         mc.join_channel(channel)
         mc.wait_for_message_num(366) # End of NAMES list
