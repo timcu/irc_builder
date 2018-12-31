@@ -319,6 +319,9 @@ irc_builder.set_sign = function(pos, direction, itemname, text)
 	if not reg then
 		return false,"Sign type not registered: "..itemname
 	end
+	if not text then
+		text = ""
+	end
 	minetest.get_voxel_manip():read_from_map(pos, pos)
 	text=text:gsub("\\n","\n")
 	local d=direction:lower()
