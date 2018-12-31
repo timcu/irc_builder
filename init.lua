@@ -341,13 +341,19 @@ irc_builder.set_sign = function(pos, direction, itemname, text)
 	end
 	local prev_node = minetest.get_node(pos)
 	if prev_node.name ~= itemname then
+		print("Creating sign at z "..pos.z.." "..itemname)
 		minetest.set_node(pos, sign)
 	end
 	local meta = minetest.get_meta(pos)
-	meta:set_string("infotext",text)
-	meta:set_string("text",text)
-	meta:set_int("__signslib_new_format",1)
-	signs_lib.update_sign(pos)
+	if meta:get_string("infotext") == text and meta:get_string("text") == text then
+		-- print("Sign unchanged at z "..pos.z.." "..text)
+	else
+		print("Sign changed at z "..pos.z.." "..text)
+		meta:set_string("infotext",text)
+		meta:set_string("text",text)
+		meta:set_int("__signslib_new_format",1)
+		signs_lib.update_sign(pos)
+	end
 	return true, itemname.." 1"
 end
 
