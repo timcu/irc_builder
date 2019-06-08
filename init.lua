@@ -2,7 +2,7 @@ dofile(minetest.get_modpath(minetest.get_current_modname()) .. "/chatcmdbuilder.
 local inflate = dofile(minetest.get_modpath(minetest.get_current_modname()) .. "/inflate_nocrc.lua")
 
 irc_builder = {
-	version = "0.0.5",
+	version = "0.0.8",
 }
 
 irc_builder.get_ground_level = function(x, z)
@@ -362,7 +362,7 @@ end
 
 ChatCmdBuilder.new("set_sign", function(cmd)
 	cmd:sub(":pos:pos :direction:word :itemname:word :text:text", function(name, pos, direction, itemname, text)
-		if minecraft.is_protected(pos, name) then
+		if minetest.is_protected(pos, name) then
 			return false, "protected 0"
 		else
 			return irc_builder.set_sign(pos, direction, itemname, text)
@@ -411,7 +411,7 @@ end
 
 ChatCmdBuilder.new("add_book_to_chest", function(cmd)
 	cmd:sub(":pos:pos :text:text", function(name, pos, text)
-		if minecraft.is_protected(pos, name) then
+		if minetest.is_protected(pos, name) then
 			return false, "protected 0"
 		end
 		text=text:gsub("\\n","\n")
