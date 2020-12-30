@@ -3,6 +3,7 @@ Developer information
 
 To package python distribution and upload to test pypi from virtual environment containing twine::
 
+  pip install wheel
   rm -R build dist ircbuilder.egg-info
   python setup.py sdist       # only required for source distribution
   python setup.py bdist_wheel
@@ -10,7 +11,7 @@ To package python distribution and upload to test pypi from virtual environment 
 
 To install from test pypi::
 
-  pip install --index-url https://test.pypi.org/simple/ ircbuilder==0.0.4
+  pip install --index-url https://test.pypi.org/simple/ ircbuilder==0.0.8
 
 To upload to pypi::
 

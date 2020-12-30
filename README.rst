@@ -13,37 +13,38 @@ Requires Minetest with irc_builder mod
 
 On Mac OS X::
 
-  brew install minetest
+  brew install minetest luarocks-5.1
+  luarocks-5.1 install luasocket
   mkdir -p ~/Library/Application\ Support/minetest/mods
   cd ~/Library/Application\ Support/minetest/mods
   git clone --recursive git@github.com/minetest-mods/irc.git
-  git clone git@github.com:ShadowNinja/minetest-irc_commands.git
-  mv minetest-irc_commands irc_commands
-  git clone git@github.com:minetest-mods/signs_lib.git
+  git clone git@github.com:ShadowNinja/minetest-irc_commands.git irc_commands
+  git clone https://gitlab.com/VanessaE/basic_materials.git
+  git clone https://gitlab.com/VanessaE/signs_lib.git
   git clone git@github.com:timcu/irc_builder.git
   /usr/local/opt/minetest/minetest.app/Contents/MacOS/minetest
 
 On Ubuntu or Debian linux::
 
-  sudo apt-get install minetest
+  sudo apt install minetest lua-socket
   mkdir -p ~/.minetest/mods
   cd ~/.minetest/mods
   git clone --recursive git@github.com/minetest-mods/irc.git
-  git clone git@github.com:ShadowNinja/minetest-irc_commands.git
-  mv minetest-irc_commands irc_commands
-  git clone git@github.com:minetest-mods/signs_lib.git
+  git clone git@github.com:ShadowNinja/minetest-irc_commands.git irc_commands
+  git clone https://gitlab.com/VanessaE/basic_materials.git
+  git clone https://gitlab.com/VanessaE/signs_lib.git
   git clone git@github.com:timcu/irc_builder.git
   minetest
 
 On Windows::
 
-  # Download and extract minetest-0.4.16-win64.zip to Documents folder
-  # Run Git-Bash (you will need to install it first)
+  # Download and extract minetest-5.3.0-win64.zip to Documents folder (https://www.minetest.net/downloads/)
+  # Run Git-Bash (you will need to install it first. https://git-scm.com/download/)
   cd ~/Documents/minetest/mods
   git clone --recursive git@github.com/minetest-mods/irc.git
-  git clone git@github.com:ShadowNinja/minetest-irc_commands.git
-  mv minetest-irc_commands irc_commands
-  git clone git@github.com:minetest-mods/signs_lib.git
+  git clone git@github.com:ShadowNinja/minetest-irc_commands.git irc_commands
+  git clone https://gitlab.com/VanessaE/basic_materials.git
+  git clone https://gitlab.com/VanessaE/signs_lib.git
   git clone git@github.com:timcu/irc_builder.git
   exit
   # Double click on Documents > minetest > bin > minetest.exe
