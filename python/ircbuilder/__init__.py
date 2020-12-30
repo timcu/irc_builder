@@ -2,9 +2,11 @@ import base64
 import json
 import logging
 import math
+import pprint
 import queue
 import random
 import socket
+import ssl
 import string
 import sys
 import threading
@@ -50,9 +52,25 @@ def escape(s):
 
 class MinetestConnection:
     """Connection to IRC Server sending commands to Minetest"""
-    def __init__(self, ircserver, mtbotnick, pybotnick, port=6667):
-        self.ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.ircsock.connect((ircserver, port))
+    def __init__(self, ircserver, mtbotnick, pybotnick, port=6697):
+        context = ssl.create_default_context()
+        self.ircsock = context.wrap_socket(socket.socket(socket.AF_INET, socket.SOCK_STREAM), server_hostname=ircserver)
+        try:
+            self.ircsock.connect((ircserver, port))
+        except ssl.SSLCertVerificationError as scve:
+            # Probably hostname mismatch or certificate expiry
+            logger.warning(str(scve))
+            # Retry with out requiring certificate verification. In future we can disallow this. 20201230
+            context = ssl.SSLContext()
+            self.ircsock = context.wrap_socket(socket.socket(socket.AF_INET, socket.SOCK_STREAM), server_hostname=ircserver)
+            self.ircsock.connect((ircserver, port))
+            cert = self.ircsock.getpeercert()
+            logger.warning(pprint.pformat(cert))
+        except ssl.SSLError as se:
+            logger.warning(f"You have initiated a connection without using SSL. Data packets not encrypted, Recommend using port 6697 instead of {port}. {se}")
+            # retry without TLS. In future we can disallow this 20201230
+            self.ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.ircsock.connect((ircserver, port))
         self.mtbotnick = mtbotnick
         self.pybotnick = pybotnick
         self.channel = "##" + "".join(random.choice(string.ascii_letters) for _ in range(6))
@@ -82,6 +100,8 @@ class MinetestConnection:
 
     def part_channel(self):
         self.send_string("PART " + self.channel)
+        self.ircsock.shutdown(0)  # stop sending and receiving
+        self.ircsock.close()
 
     def close(self):
         self.part_channel()
@@ -115,6 +135,9 @@ class MinetestConnection:
                 buffer += self.ircsock.recv(2048).decode(CHAR_SET)
             except socket.timeout:
                 logger.warning("socket.recv timed out!!")
+            except OSError:
+                # socket has been closed so stop receiving thread probably in part_channel
+                break
             last_line_complete = len(buffer) > 0 and buffer[-1:] in '\r\n'
             lines = buffer.split('\r\n')
             if not last_line_complete:
@@ -391,7 +414,7 @@ class MinetestConnection:
         self.building = {}
 
     @staticmethod
-    def create(ircserver, mtuser, mtuserpass, mtbotnick="mtserver", channel=None, pybotnick=None, port=6667):
+    def create(ircserver, mtuser, mtuserpass, mtbotnick="mtserver", channel=None, pybotnick=None, port=6697):
         if not pybotnick:
             pybotnick = "py" + mtuser
             if len(pybotnick) > NICK_MAX_LEN:
@@ -413,7 +436,7 @@ class MinetestConnection:
 
 
 @contextmanager
-def open_irc(ircserver, mtuser, mtuserpass, mtbotnick="mtserver", channel=None, pybotnick=None, port=6667):
+def open_irc(ircserver, mtuser, mtuserpass, mtbotnick="mtserver", channel=None, pybotnick=None, port=6697):
     """open_irc ensures channel is always parted """
     new_mc = MinetestConnection.create(ircserver, mtuser, mtuserpass, mtbotnick, channel, pybotnick, port)
     # @contextmanager requires a yield. Everything before yield is __enter__(). Everything after is __exit__()
@@ -422,9 +445,5 @@ def open_irc(ircserver, mtuser, mtuserpass, mtbotnick="mtserver", channel=None, 
 
 
 def check_irc(mtuser, mtuserpass):
-    with open_irc("irc.triptera.com.au", mtuser, mtuserpass, channel='#pythonator', port=6667) as mc:
+    with open_irc("irc.triptera.com.au", mtuser, mtuserpass, channel='#pythonator', port=6697) as mc:
         mc.send_msg("Hello, Minetest!")
-
-
-if __name__ == "__main__":
-    check_irc("timcu", sys.argv[0])
