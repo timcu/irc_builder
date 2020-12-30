@@ -11,19 +11,6 @@ pip install ircbuilder
 
 Requires Minetest with irc_builder mod
 
-On Mac OS X::
-
-  brew install minetest luarocks-5.1
-  luarocks-5.1 install luasocket
-  mkdir -p ~/Library/Application\ Support/minetest/mods
-  cd ~/Library/Application\ Support/minetest/mods
-  git clone --recursive git@github.com/minetest-mods/irc.git
-  git clone git@github.com:ShadowNinja/minetest-irc_commands.git irc_commands
-  git clone https://gitlab.com/VanessaE/basic_materials.git
-  git clone https://gitlab.com/VanessaE/signs_lib.git
-  git clone git@github.com:timcu/irc_builder.git
-  /usr/local/opt/minetest/minetest.app/Contents/MacOS/minetest
-
 On Ubuntu or Debian linux::
 
   sudo apt install minetest lua-socket
@@ -48,6 +35,27 @@ On Windows::
   git clone git@github.com:timcu/irc_builder.git
   exit
   # Double click on Documents > minetest > bin > minetest.exe
+
+On Mac OS X::
+
+  brew install minetest luarocks-5.1
+  luarocks-5.1 install luasocket
+  mkdir -p ~/Library/Application\ Support/minetest/mods
+  cd ~/Library/Application\ Support/minetest/mods
+  git clone --recursive git@github.com/minetest-mods/irc.git
+  git clone git@github.com:ShadowNinja/minetest-irc_commands.git irc_commands
+  git clone https://gitlab.com/VanessaE/basic_materials.git
+  git clone https://gitlab.com/VanessaE/signs_lib.git
+  git clone git@github.com:timcu/irc_builder.git
+  /usr/local/opt/minetest/minetest.app/Contents/MacOS/minetest
+
+On Mac OS X using MacPorts::
+
+  sudo port install minetest luarocks
+  sudo -H luarocks install luasocket
+  cd /opt/local/share/lua/5.1
+  sudo ln -s ../5.3/socket
+  # Then continue from third line above
 
 Once running, adjust the following settings::
 
