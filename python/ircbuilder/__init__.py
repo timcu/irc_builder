@@ -113,7 +113,7 @@ class MinetestConnection:
                 self.irc_disabled_message_printed = True
             return
         self.ircsock.send(encode(s.strip("\r\n") + "\n"))
-        if s.startswith('PRIVMSG') and ': cmd login' in s:
+        if s.startswith('PRIVMSG') and ': login' in s:
             idx_pass = s.rfind(' ')
             s = s[idx_pass] + ' <PASSWORD REMOVED FROM LOG>'
         logger.info("SEND: " + s)
@@ -208,7 +208,7 @@ class MinetestConnection:
                     return num
             else:
                 time.sleep(0.1)
-        logger.warning(f"Timeout waiting for {message_num}")
+        logger.warning(f"Timeout waiting for {message_num}. Time taken {time.time() - start} ")
         return None
 
     def send_irccmd(self, msg):  # send private message to mtbotnick
