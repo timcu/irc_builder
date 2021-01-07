@@ -22,6 +22,7 @@ from ircbuilder.version import VERSION
 NICK_MAX_LEN = 9
 CHAR_SET = "UTF-8"
 
+# logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
@@ -57,15 +58,17 @@ class MinetestConnection:
         self.ircsock = context.wrap_socket(socket.socket(socket.AF_INET, socket.SOCK_STREAM), server_hostname=ircserver)
         try:
             self.ircsock.connect((ircserver, port))
+            cert = self.ircsock.getpeercert()
+            logger.debug(f"cert={pprint.pformat(cert)}")
         except ssl.SSLCertVerificationError as scve:
             # Probably hostname mismatch or certificate expiry
-            logger.warning(str(scve))
+            logger.warning(f"Certificate verification failed so retrying without verification. This will be disallowed in future. {scve}")
             # Retry with out requiring certificate verification. In future we can disallow this. 20201230
             context = ssl.SSLContext()
             self.ircsock = context.wrap_socket(socket.socket(socket.AF_INET, socket.SOCK_STREAM), server_hostname=ircserver)
             self.ircsock.connect((ircserver, port))
             cert = self.ircsock.getpeercert()
-            logger.warning(pprint.pformat(cert))
+            logger.debug(f"cert={pprint.pformat(cert)}")
         except ssl.SSLError as se:
             logger.warning(f"You have initiated a connection without using SSL. Data packets not encrypted, Recommend using port 6697 instead of {port}. {se}")
             # retry without TLS. In future we can disallow this 20201230
@@ -74,7 +77,7 @@ class MinetestConnection:
         self.mtbotnick = mtbotnick
         self.pybotnick = pybotnick
         self.channel = "##" + "".join(random.choice(string.ascii_letters) for _ in range(6))
-        logger.debug("__init__: Random channel", self.channel)
+        logger.debug(f"__init__: Random channel {self.channel}")
         self.pycharm_edu_check_task = len(sys.argv) > 1 and "_window" in sys.argv[1]
         # self.pycharm_edu_check_task = True  # For testing only
         self.irc_disabled_message = "IRC disabled because sys.argv[1] contains '_window' meaning PyCharm Edu is checking task"
@@ -112,10 +115,12 @@ class MinetestConnection:
                 print(self.irc_disabled_message)
                 self.irc_disabled_message_printed = True
             return
+        # Adding a short delay here can stop occasional SSLError SSLV3_ALERT_BAD_RECORD_MAC
+        time.sleep(0.1)
         self.ircsock.send(encode(s.strip("\r\n") + "\n"))
         if s.startswith('PRIVMSG') and ': login' in s:
             idx_pass = s.rfind(' ')
-            s = s[idx_pass] + ' <PASSWORD REMOVED FROM LOG>'
+            s = s[:idx_pass] + ' <PASSWORD REMOVED FROM LOG>'
         logger.info("SEND: " + s)
 
     def pong(self, *items):
@@ -135,18 +140,26 @@ class MinetestConnection:
                 buffer += self.ircsock.recv(2048).decode(CHAR_SET)
             except socket.timeout:
                 logger.warning("socket.recv timed out!!")
-            except OSError:
+            except ssl.SSLError as se:
+                logger.debug(f"SSLError but not stopping receive thread {se=}")
+            except OSError as ose:
                 # socket has been closed so stop receiving thread probably in part_channel
+                logger.debug(f"Socket closed so stopping receive thread {ose=}")
                 break
             last_line_complete = len(buffer) > 0 and buffer[-1:] in '\r\n'
             lines = buffer.split('\r\n')
             if not last_line_complete:
                 buffer = lines[-1]
-                del(lines[-1])
+                del lines[-1]
             else:
                 buffer = ''
             for line in lines:
-                logger.info("RECV: " + str(line))
+                if len(line) == 0:
+                    continue
+                if logger.level > logging.DEBUG:
+                    logger.info(f"RECV: {line}")
+                else:
+                    logger.debug(f"RECV {len(line)} {len(buffer)}: {line}")
                 if line.find("PING :") == 0:
                     self.pong(line[6:])
                 elif line.find("VERSION") == 0:
@@ -445,5 +458,7 @@ def open_irc(ircserver, mtuser, mtuserpass, mtbotnick="mtserver", channel=None, 
 
 
 def check_irc(mtuser, mtuserpass):
-    with open_irc("irc.triptera.com.au", mtuser, mtuserpass, channel='#pythonator', port=6697) as mc:
+    ircserver = "irc.triptera.com.au"
+    channel = "#pythonator"
+    with open_irc(ircserver, mtuser, mtuserpass, channel=channel, port=6697) as mc:
         mc.send_msg("Hello, Minetest!")
