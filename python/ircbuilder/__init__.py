@@ -63,15 +63,15 @@ class MinetestConnection:
         except ssl.SSLCertVerificationError as scve:
             # Probably hostname mismatch or certificate expiry
             logger.warning(f"Certificate verification failed so retrying without verification. This will be disallowed in future. {scve}")
-            # Retry with out requiring certificate verification. In future we can disallow this. 20201230
-            context = ssl.SSLContext()
+            # Retry without requiring certificate verification. In the future, we can disallow this. 20201230
+            context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
             self.ircsock = context.wrap_socket(socket.socket(socket.AF_INET, socket.SOCK_STREAM), server_hostname=ircserver)
             self.ircsock.connect((ircserver, port))
             cert = self.ircsock.getpeercert()
             logger.debug(f"cert={pprint.pformat(cert)}")
         except ssl.SSLError as se:
             logger.warning(f"You have initiated a connection without using SSL. Data packets not encrypted, Recommend using port 6697 instead of {port}. {se}")
-            # retry without TLS. In future we can disallow this 20201230
+            # retry without TLS. In the future, we can disallow this 20201230
             self.ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.ircsock.connect((ircserver, port))
         self.mtbotnick = mtbotnick
@@ -90,7 +90,7 @@ class MinetestConnection:
         self.q_num = queue.Queue()
         self.receive_thread = threading.Thread(target=self.receive_irc)
         # Set daemon so thread will stop when main program stops
-        self.receive_thread.setDaemon(True)
+        self.receive_thread.daemon = True
         self.receive_thread.start()
 
     def join_channel(self, channel=None):
