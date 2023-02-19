@@ -18,8 +18,8 @@ On Ubuntu or Debian linux::
   cd ~/.minetest/mods
   git clone --recursive git@github.com/minetest-mods/irc.git
   git clone git@github.com:ShadowNinja/minetest-irc_commands.git irc_commands
-  git clone https://gitlab.com/VanessaE/basic_materials.git
-  git clone https://gitlab.com/VanessaE/signs_lib.git
+  git clone https://github.com/mt-mods/basic_materials.git
+  git clone https://github.com/mt-mods/signs_lib.git
   git clone git@github.com:timcu/irc_builder.git
   minetest
 
@@ -30,8 +30,8 @@ On Windows::
   cd ~/Documents/minetest/mods
   git clone --recursive git@github.com/minetest-mods/irc.git
   git clone git@github.com:ShadowNinja/minetest-irc_commands.git irc_commands
-  git clone https://gitlab.com/VanessaE/basic_materials.git
-  git clone https://gitlab.com/VanessaE/signs_lib.git
+  git clone https://github.com/mt-mods/basic_materials.git
+  git clone https://github.com/mt-mods/signs_lib.git
   git clone git@github.com:timcu/irc_builder.git
   exit
   # Double click on Documents > minetest > bin > minetest.exe
@@ -44,8 +44,8 @@ On Mac OS X::
   cd ~/Library/Application\ Support/minetest/mods
   git clone --recursive git@github.com/minetest-mods/irc.git
   git clone git@github.com:ShadowNinja/minetest-irc_commands.git irc_commands
-  git clone https://gitlab.com/VanessaE/basic_materials.git
-  git clone https://gitlab.com/VanessaE/signs_lib.git
+  git clone https://github.com/mt-mods/basic_materials.git
+  git clone https://github.com/mt-mods/signs_lib.git
   git clone git@github.com:timcu/irc_builder.git
   /usr/local/opt/minetest/minetest.app/Contents/MacOS/minetest
 
@@ -62,7 +62,7 @@ Once running, adjust the following settings::
   # Settings > Advanced > Server/Singleplayer > Security > Trusted mods > irc
   # Settings > Advanced > Mods > irc > Basic > Bot nickname > eg mtserver
   # Settings > Advanced > Mods > irc > Basic > IRC server > eg irc.undernet.org
-  # Settings > Advanced > Mods > irc > Basic > IRC server port > eg 6667
+  # Settings > Advanced > Mods > irc > Basic > IRC server port > eg 6667 or 6697
   # Settings > Advanced > Mods > irc > Basic > Channel to join > eg ##myminetest
 
 
